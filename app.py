@@ -340,10 +340,28 @@ def solve(formula, geometry):
     }
 
 
-def isomer_name(idx, arr, result):
-    chirality = "Achiral" if arr in result["achiral"] else "Chiral"
+def isomer_type_info(arr, result):
+    is_chiral = arr in result["chiral"]
     pair_info = result["enantiomer_label_map"].get(arr)
-    base_name = f"Isomer #{idx} · {pair_info} [{chirality}]" if pair_info else f"Isomer #{idx} [{chirality}]"
+    if is_chiral:
+        short_badge = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL (CHIRAL)"
+        full_label = f"Optical Isomer (Chiral) — {pair_info}" if pair_info else "Optical Isomer (Chiral)"
+        badge_color = "#B45309"
+    else:
+        short_badge = "ACHIRAL GEOMETRIC"
+        full_label = "Achiral Isomer (No Optical Enantiomer)"
+        badge_color = "#0369A1"
+    return {
+        "is_chiral": is_chiral,
+        "short_badge": short_badge,
+        "full_label": full_label,
+        "badge_color": badge_color,
+    }
+
+
+def isomer_name(idx, arr, result):
+    type_info = isomer_type_info(arr, result)
+    base_name = f"Isomer #{idx} · {type_info['full_label']}"
     descs = result["descriptors_map"].get(arr, [])
     if descs:
         return f"{base_name} · {', '.join(descs)}"
@@ -378,7 +396,7 @@ def curved_bridge_points(p1, p2, bulge=0.28, steps=28):
     return xs, ys, zs
 
 
-def draw_isomer_3d(points, arrangement, bridges, title):
+def draw_isomer_3d(points, arrangement, bridges, title, type_info):
     unique_labels = sorted(set(arrangement))
     color_lookup = {
         lbl: LIGAND_COLORS[i % len(LIGAND_COLORS)]
@@ -386,7 +404,7 @@ def draw_isomer_3d(points, arrangement, bridges, title):
     }
     bridge_set = {tuple(sorted(pair)) for pair in bridges}
 
-    fig = plt.figure(figsize=(4.2, 3.8))
+    fig = plt.figure(figsize=(4.2, 4.0))
     ax = fig.add_subplot(111, projection="3d")
 
     ax.scatter([0.0], [0.0], [0.0], s=250, color="#374151", edgecolors="white", linewidth=1.2, zorder=5)
@@ -426,7 +444,6 @@ def draw_isomer_3d(points, arrangement, bridges, title):
             alpha=0.65,
         )
 
-    # Smooth outward arc for each bidentate chelate bridge
     for idx_b, (i, j) in enumerate(sorted(bridge_set)):
         p1, p2 = points[i], points[j]
         arc_color = "#8B5CF6" if idx_b % 2 == 0 else "#EC4899"
@@ -439,7 +456,13 @@ def draw_isomer_3d(points, arrangement, bridges, title):
     ax.set_zlim(-lim, lim)
     ax.set_box_aspect([1, 1, 1])
     ax.set_axis_off()
-    ax.set_title(title, fontsize=10, fontweight="bold", pad=8)
+    ax.set_title(
+        f"{title}\n[{type_info['short_badge']}]",
+        fontsize=9.5,
+        fontweight="bold",
+        color=type_info["badge_color"],
+        pad=8,
+    )
     plt.tight_layout()
     return fig
 
@@ -459,7 +482,7 @@ def render_app():
     st.title("🧪 Inorganic Chemistry Isomerism Solver")
     st.caption(
         "Educational MVP — enumerates idealized coordination-site arrangements "
-        "and displays isomer counts, names, cis/trans & fac/mer descriptors, and 3D diagrams."
+        "and displays isomer counts, names, optical vs. achiral classification, cis/trans & fac/mer descriptors, and 3D diagrams."
     )
 
     with st.expander("Notation & Model Limitations", expanded=False):
@@ -510,7 +533,7 @@ def render_app():
     m1.metric("Total Stereoisomers", len(result["stereoisomers"]))
     m2.metric("Geometric Classes", len(result["geometric_isomers"]))
     m3.metric("Achiral", len(result["achiral"]))
-    m4.metric("Chiral", len(result["chiral"]))
+    m4.metric("Optical (Chiral)", len(result["chiral"]))
     m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
 
     st.subheader("أسماء ورسوم الأيزومرات (Isomer Names, Descriptors & 3D Diagrams)")
@@ -523,12 +546,15 @@ def render_app():
         for offset, arr in enumerate(chunk):
             idx = start + offset + 1
             name = isomer_name(idx, arr, result)
+            type_info = isomer_type_info(arr, result)
             descs = result["descriptors_map"].get(arr, [])
             bridges = result["bridges_by_arr"].get(arr, ())
             with row_cols[offset]:
                 with st.container(border=True):
                     st.markdown(f"**{name}**")
-                    fig = draw_isomer_3d(result["points"], arr, bridges, f"Isomer #{idx}")
+                    fig = draw_isomer_3d(
+                        result["points"], arr, bridges, f"Isomer #{idx}", type_info
+                    )
                     st.pyplot(fig, use_container_width=True)
                     plt.close(fig)
                     desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
