@@ -638,5 +638,4 @@ def render_app():
             "Geometric Isomers (Matches Geometric Classes count)",
             "All Stereoisomers (Includes each mirror form A / B)",
         ],
-        horizontal=True,
-)
+        horizontal=True,)
