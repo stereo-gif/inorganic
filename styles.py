@@ -21,41 +21,27 @@ ACHIRAL_BADGE_COLOR = "#0369A1"
 CHELATE_ARC_PRIMARY = "#7C3AED"
 CHELATE_ARC_SECONDARY = "#DB2777"
 
+BG_PAGE = "#f8fafc"
+BG_CARD = "#ffffff"
+BG_HERO = "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)"
+BORDER_COL = "#e2e8f0"
+TEXT_MAIN = "#0f172a"
+TEXT_MUTED = "#475569"
+PILL_OPT_BG = "#fef3c7"
+PILL_OPT_TEXT = "#92400e"
+PILL_OPT_BORDER = "#fcd34d"
+PILL_ACH_BG = "#e0f2fe"
+PILL_ACH_text = "#075985"
+PILL_ACH_BORDER = "#7dd3fc"
 
-def apply_styles(dark_mode: bool = False):
-    if dark_mode:
-        bg_page = "#0b1120"
-        bg_card = "#111827"
-        bg_hero = "linear-gradient(135deg, #111827 0%, #1e1b4b 100%)"
-        border_col = "#1f2937"
-        text_main = "#f8fafc"
-        text_muted = "#94a3b8"
-        pill_opt_bg = "rgba(245, 158, 11, 0.16)"
-        pill_opt_text = "#fbbf24"
-        pill_opt_border = "rgba(251, 191, 36, 0.35)"
-        pill_ach_bg = "rgba(14, 165, 233, 0.16)"
-        pill_ach_text = "#38bdf8"
-        pill_ach_border = "rgba(56, 189, 248, 0.35)"
-    else:
-        bg_page = "#f8fafc"
-        bg_card = "#ffffff"
-        bg_hero = "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)"
-        border_col = "#e2e8f0"
-        text_main = "#0f172a"
-        text_muted = "#475569"
-        pill_opt_bg = "#fef3c7"
-        pill_opt_text = "#92400e"
-        pill_opt_border = "#fcd34d"
-        pill_ach_bg = "#e0f2fe"
-        pill_ach_text = "#075985"
-        pill_ach_border = "#7dd3fc"
 
+def apply_styles():
     st.markdown(
         f"""
         <style>
         .stApp {{
-            background-color: {bg_page};
-            color: {text_main};
+            background-color: {BG_PAGE};
+            color: {TEXT_MAIN};
         }}
         .block-container {{
             padding-top: 1.4rem;
@@ -65,8 +51,8 @@ def apply_styles(dark_mode: bool = False):
             max-width: 1120px;
         }}
         .hero-card {{
-            background: {bg_hero};
-            border: 1px solid {border_col};
+            background: {BG_HERO};
+            border: 1px solid {BORDER_COL};
             border-radius: 18px;
             padding: 1.15rem 1.3rem;
             margin-bottom: 0.9rem;
@@ -74,20 +60,20 @@ def apply_styles(dark_mode: bool = False):
         .hero-title {{
             font-size: 1.45rem;
             font-weight: 800;
-            color: {text_main};
+            color: {TEXT_MAIN};
             margin: 0;
         }}
         .legend-strip {{
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-            background: {bg_card};
-            border: 1px solid {border_col};
+            background: {BG_CARD};
+            border: 1px solid {BORDER_COL};
             border-radius: 14px;
             padding: 0.65rem 0.9rem;
             margin-bottom: 1rem;
             font-size: 0.8rem;
-            color: {text_muted};
+            color: {TEXT_MUTED};
         }}
         .legend-item {{
             display: inline-flex;
@@ -95,9 +81,9 @@ def apply_styles(dark_mode: bool = False):
             gap: 0.35rem;
             padding: 0.15rem 0.5rem;
             border-radius: 999px;
-            background: {bg_page};
-            border: 1px solid {border_col};
-            color: {text_main};
+            background: {BG_PAGE};
+            border: 1px solid {BORDER_COL};
+            color: {TEXT_MAIN};
             font-weight: 600;
         }}
         .dot-chelate {{
@@ -108,33 +94,33 @@ def apply_styles(dark_mode: bool = False):
             display: inline-block;
         }}
         [data-testid="stMetric"] {{
-            background-color: {bg_card};
-            border: 1px solid {border_col};
+            background-color: {BG_CARD};
+            border: 1px solid {BORDER_COL};
             border-radius: 14px;
             padding: 0.75rem 0.9rem;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
         }}
         [data-testid="stMetricLabel"] {{
             font-size: 0.78rem !important;
-            color: {text_muted} !important;
+            color: {TEXT_MUTED} !important;
         }}
         [data-testid="stMetricValue"] {{
             font-size: 1.35rem !important;
             font-weight: 700 !important;
-            color: {text_main} !important;
+            color: {TEXT_MAIN} !important;
         }}
         div[data-testid="stVerticalBlockBorderWrapper"] {{
             border-radius: 16px !important;
-            border-color: {border_col} !important;
-            background-color: {bg_card} !important;
+            border-color: {BORDER_COL} !important;
+            background-color: {BG_CARD} !important;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
             padding: 0.45rem !important;
         }}
         .type-pill-opt {{
             display: inline-block;
-            background-color: {pill_opt_bg};
-            color: {pill_opt_text};
-            border: 1px solid {pill_opt_border};
+            background-color: {PILL_OPT_BG};
+            color: {PILL_OPT_TEXT};
+            border: 1px solid {PILL_OPT_BORDER};
             border-radius: 999px;
             padding: 0.2rem 0.7rem;
             font-size: 0.78rem;
@@ -143,9 +129,9 @@ def apply_styles(dark_mode: bool = False):
         }}
         .type-pill-ach {{
             display: inline-block;
-            background-color: {pill_ach_bg};
-            color: {pill_ach_text};
-            border: 1px solid {pill_ach_border};
+            background-color: {PILL_ACH_BG};
+            color: {PILL_ACH_text};
+            border: 1px solid {PILL_ACH_BORDER};
             border-radius: 999px;
             padding: 0.2rem 0.7rem;
             font-size: 0.78rem;
@@ -153,8 +139,8 @@ def apply_styles(dark_mode: bool = False):
             margin-bottom: 0.45rem;
         }}
         div[role="radiogroup"] label {{
-            background: {bg_card};
-            border: 1px solid {border_col};
+            background: {BG_CARD};
+            border: 1px solid {BORDER_COL};
             border-radius: 12px;
             padding: 0.45rem 0.8rem;
             margin-right: 0.4rem;
