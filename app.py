@@ -213,7 +213,10 @@ def transform_state(state, permutation):
     for old_site, new_site in enumerate(permutation):
         result_labels[new_site] = labels[old_site]
     mapped_bridges = tuple(
-        sorted((min(permutation[i], permutation[j]), max(permutation[i], permutation[j])) for i, j in bridges)
+        sorted(
+            (min(permutation[i], permutation[j]), max(permutation[i], permutation[j]))
+            for i, j in bridges
+        )
     )
     return (tuple(result_labels), mapped_bridges)
 
@@ -265,7 +268,10 @@ def infer_descriptors(points, arrangement, geometry):
                 ang = angle_deg(points[i], points[j])
                 if abs(ang - 180.0) <= 5.0:
                     descriptors.append(f"trans-{lbl}")
-                elif geometry in ("octahedral", "square_planar", "square_pyramidal") and abs(ang - 90.0) <= 5.0:
+                elif (
+                    geometry in ("octahedral", "square_planar", "square_pyramidal")
+                    and abs(ang - 90.0) <= 5.0
+                ):
                     descriptors.append(f"cis-{lbl}")
 
     return list(dict.fromkeys(descriptors))
@@ -284,7 +290,9 @@ def solve(formula, geometry):
     improper = symmetry_permutations(geometry, -1)
     full_ops = proper + improper
     if not improper:
-        raise RuntimeError("Could not construct improper symmetry operations for this geometry.")
+        raise RuntimeError(
+            "Could not construct improper symmetry operations for this geometry."
+        )
 
     stereo_reps = {}
     for st_item in states:
@@ -311,7 +319,10 @@ def solve(formula, geometry):
     enantiomer_label_map = {}
 
     for arr in stereoisomers:
-        mirror_images = {canonical_arrangement(transform_arrangement(arr, op), proper) for op in improper}
+        mirror_images = {
+            canonical_arrangement(transform_arrangement(arr, op), proper)
+            for op in improper
+        }
         if arr in mirror_images:
             achiral.append(arr)
         else:
@@ -337,7 +348,9 @@ def solve(formula, geometry):
         g_arr = g_state[0]
         matching_pair_idx = None
         for s_arr in stereoisomers:
-            if canonical_arrangement(s_arr, full_ops) == canonical_arrangement(g_arr, full_ops):
+            if canonical_arrangement(s_arr, full_ops) == canonical_arrangement(
+                g_arr, full_ops
+            ):
                 if s_arr in pair_lookup:
                     matching_pair_idx = pair_lookup[s_arr]
                     break
@@ -410,14 +423,51 @@ def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color)
     fig = plt.figure(figsize=(4.2, 4.0), facecolor="#FFFFFF")
     ax = fig.add_subplot(111, projection="3d", facecolor="#FFFFFF")
 
-    ax.scatter([0.0], [0.0], [0.0], s=250, color="#1E293B", edgecolors="white", linewidth=1.3, zorder=5)
-    ax.text(0.0, 0.0, 0.0, "M", color="white", fontsize=9, fontweight="bold", ha="center", va="center", zorder=6)
+    ax.scatter(
+        [0.0],
+        [0.0],
+        [0.0],
+        s=250,
+        color="#1E293B",
+        edgecolors="white",
+        linewidth=1.3,
+        zorder=5,
+    )
+    ax.text(
+        0.0,
+        0.0,
+        0.0,
+        "M",
+        color="white",
+        fontsize=9,
+        fontweight="bold",
+        ha="center",
+        va="center",
+        zorder=6,
+    )
 
     for pt, lbl in zip(points, arrangement):
         x, y, z = pt
         c = color_lookup[lbl]
-        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#94A3B8", linestyle="-", linewidth=1.6, alpha=0.85)
-        ax.scatter([x], [y], [z], s=215, color=c, edgecolors="#1E293B", linewidth=1.0, zorder=6)
+        ax.plot(
+            [0.0, x],
+            [0.0, y],
+            [0.0, z],
+            color="#94A3B8",
+            linestyle="-",
+            linewidth=1.6,
+            alpha=0.85,
+        )
+        ax.scatter(
+            [x],
+            [y],
+            [z],
+            s=215,
+            color=c,
+            edgecolors="#1E293B",
+            linewidth=1.0,
+            zorder=6,
+        )
         ax.text(
             x * 1.24,
             y * 1.24,
@@ -451,7 +501,16 @@ def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color)
         p1, p2 = points[i], points[j]
         arc_color = "#7C3AED" if idx_b % 2 == 0 else "#DB2777"
         xs, ys, zs = curved_bridge_points(p1, p2, bulge=0.28, steps=28)
-        ax.plot(xs, ys, zs, color=arc_color, linestyle="-", linewidth=2.5, alpha=0.95, zorder=8)
+        ax.plot(
+            xs,
+            ys,
+            zs,
+            color=arc_color,
+            linestyle="-",
+            linewidth=2.5,
+            alpha=0.95,
+            zorder=8,
+        )
 
     lim = 1.48
     ax.set_xlim(-lim, lim)
@@ -575,6 +634,33 @@ def inject_mobile_friendly_css():
     )
 
 
+def render_isomer_grid(cards, cols_per_row=2):
+    for start in range(0, len(cards), cols_per_row):
+        row_cols = st.columns(cols_per_row)
+        chunk = cards[start : start + cols_per_row]
+        for offset, item in enumerate(chunk):
+            with row_cols[offset]:
+                with st.container(border=True):
+                    st.markdown(item["pill_html"], unsafe_allow_html=True)
+                    st.markdown(f"**{item['title']}**")
+                    fig = draw_isomer_3d(
+                        item["points"],
+                        item["arr"],
+                        item["bridges"],
+                        item["short_title"],
+                        item["badge_text"],
+                        item["badge_color"],
+                    )
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                    desc_text = (
+                        ", ".join(item["descs"])
+                        if item["descs"]
+                        else "No cis/trans or fac/mer label"
+                    )
+                    st.markdown(f"**Descriptors:** `{desc_text}`")
+
+
 def render_app():
     st.set_page_config(
         page_title="Inorganic Chemistry Isomerism Solver",
@@ -658,40 +744,71 @@ def render_app():
         horizontal=True,
     )
 
-    cols_per_row = 2
-
     if view_mode.startswith("Geometric Isomers"):
         geom_list = result["geometric_isomers"]
         st.subheader(f"الأيزومرات الهندسية ({len(geom_list)})")
-        for start in range(0, len(geom_list), cols_per_row):
-            row_cols = st.columns(cols_per_row)
-            chunk = geom_list[start : start + cols_per_row]
-            for offset, g_arr in enumerate(chunk):
-                idx = start + offset + 1
-                is_opt = result["geom_is_optical"].get(g_arr, False)
-                pair_num = result["geom_pair_index"].get(g_arr)
-                if is_opt:
-                    badge_text = f"OPTICAL · Pair {pair_num}" if pair_num else "OPTICAL"
-                    full_title = f"Geometric Isomer #{idx} · Optical (Pair {pair_num})"
-                    badge_color = "#B45309"
-                    pill_html = f'<span class="type-pill-opt">Optical Isomer · Enantiomer Pair {pair_num}</span>'
-                else:
-                    badge_text = "ACHIRAL"
-                    full_title = f"Geometric Isomer #{idx} · Achiral"
-                    badge_color = "#0369A1"
-                    pill_html = '<span class="type-pill-ach">Achiral Isomer (No Optical Enantiomer)</span>'
+        cards = []
+        for idx, g_arr in enumerate(geom_list, 1):
+            is_opt = result["geom_is_optical"].get(g_arr, False)
+            pair_num = result["geom_pair_index"].get(g_arr)
+            if is_opt:
+                badge_text = f"OPTICAL · Pair {pair_num}" if pair_num else "OPTICAL"
+                full_title = f"Geometric Isomer #{idx} · Optical (Pair {pair_num})"
+                badge_color = "#B45309"
+                pill_html = f'<span class="type-pill-opt">Optical Isomer · Enantiomer Pair {pair_num}</span>'
+            else:
+                badge_text = "ACHIRAL"
+                full_title = f"Geometric Isomer #{idx} · Achiral"
+                badge_color = "#0369A1"
+                pill_html = '<span class="type-pill-ach">Achiral Isomer (No Optical Enantiomer)</span>'
 
-                descs = result["geom_descriptors_map"].get(g_arr, [])
-                bridges = result["geom_bridges_by_arr"].get(g_arr, ())
+            cards.append(
+                {
+                    "points": result["points"],
+                    "arr": g_arr,
+                    "bridges": result["geom_bridges_by_arr"].get(g_arr, ()),
+                    "title": full_title,
+                    "short_title": f"Geo #{idx}",
+                    "badge_text": badge_text,
+                    "badge_color": badge_color,
+                    "pill_html": pill_html,
+                    "descs": result["geom_descriptors_map"].get(g_arr, []),
+                }
+            )
+        render_isomer_grid(cards, cols_per_row=2)
+    else:
+        stereo_list = result["stereoisomers"]
+        st.subheader(f"كل الأيزومرات الفراغية ({len(stereo_list)})")
+        cards = []
+        for idx, s_arr in enumerate(stereo_list, 1):
+            is_chiral = s_arr in result["chiral"]
+            pair_info = result["enantiomer_label_map"].get(s_arr)
+            if is_chiral:
+                badge_text = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL"
+                full_title = f"Stereoisomer #{idx} · Optical ({pair_info})"
+                badge_color = "#B45309"
+                pill_html = f'<span class="type-pill-opt">Optical Isomer · {pair_info}</span>'
+            else:
+                badge_text = "ACHIRAL"
+                full_title = f"Stereoisomer #{idx} · Achiral"
+                badge_color = "#0369A1"
+                pill_html = '<span class="type-pill-ach">Achiral Isomer</span>'
 
-                with row_cols[offset]:
-                    with st.container(border=True):
-                        st.markdown(pill_html, unsafe_allow_html=True)
-                        st.markdown(f"**{full_title}**")
-                        fig = draw_isomer_3d(
-                            result["points"],
-                            g_arr,
-                            bridges,
-                            f"Geo #{idx}",
-                            badge_text,
-                            badge_color
+            cards.append(
+                {
+                    "points": result["points"],
+                    "arr": s_arr,
+                    "bridges": result["bridges_by_arr"].get(s_arr, ()),
+                    "title": full_title,
+                    "short_title": f"Stereo #{idx}",
+                    "badge_text": badge_text,
+                    "badge_color": badge_color,
+                    "pill_html": pill_html,
+                    "descs": result["descriptors_map"].get(s_arr, []),
+                }
+            )
+        render_isomer_grid(cards, cols_per_row=2)
+
+
+if __name__ == "__main__":
+    render_app()
