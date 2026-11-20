@@ -286,17 +286,25 @@ def solve(formula, geometry):
     if not improper:
         raise RuntimeError("Could not construct improper symmetry operations for this geometry.")
 
-    representatives = {}
+    # Stereoisomers (quotient by proper rotations)
+    stereo_reps = {}
     for st_item in states:
         key = canonical_state(st_item, proper)
-        representatives[key] = key
+        stereo_reps[key] = key
 
-    stereoisomer_states = sorted(representatives)
+    stereoisomer_states = sorted(stereo_reps)
     stereoisomers = [item[0] for item in stereoisomer_states]
     bridges_by_arr = {item[0]: item[1] for item in stereoisomer_states}
 
-    geometric_representatives = {canonical_arrangement(item[0], full_ops) for item in states}
-    geometric_isomers = sorted(geometric_representatives)
+    # Geometric isomers (quotient by full symmetry operations including reflections)
+    geom_reps = {}
+    for st_item in states:
+        gkey = canonical_state(st_item, full_ops)
+        geom_reps[gkey] = gkey
+
+    geometric_states = sorted(geom_reps)
+    geometric_isomers = [item[0] for item in geometric_states]
+    geom_bridges_by_arr = {item[0]: item[1] for item in geometric_states}
 
     chiral = []
     achiral = []
@@ -320,8 +328,31 @@ def solve(formula, geometry):
         enantiomer_label_map[first_arr] = f"Enantiomer Pair {pair_idx} (Form A)"
         enantiomer_label_map[second_arr] = f"Enantiomer Pair {pair_idx} (Form B)"
 
+    # Map each geometric class to whether it has an optical enantiomer pair
+    geom_is_optical = {}
+    geom_pair_index = {}
+    pair_lookup = {}
+    for pair_idx, (first_arr, second_arr) in enumerate(mirror_pairs, 1):
+        pair_lookup[first_arr] = pair_idx
+        pair_lookup[second_arr] = pair_idx
+
+    for g_state in geometric_states:
+        g_arr = g_state[0]
+        # Find any stereoisomer in this geometric class
+        matching_pair_idx = None
+        for s_arr in stereoisomers:
+            if canonical_arrangement(s_arr, full_ops) == canonical_arrangement(g_arr, full_ops):
+                if s_arr in pair_lookup:
+                    matching_pair_idx = pair_lookup[s_arr]
+                    break
+        geom_is_optical[g_arr] = matching_pair_idx is not None
+        geom_pair_index[g_arr] = matching_pair_idx
+
     descriptors_map = {
         arr: infer_descriptors(points, arr, geometry) for arr in stereoisomers
+    }
+    geom_descriptors_map = {
+        arr: infer_descriptors(points, arr, geometry) for arr in geometric_isomers
     }
 
     return {
@@ -331,41 +362,17 @@ def solve(formula, geometry):
         "stereoisomers": stereoisomers,
         "bridges_by_arr": bridges_by_arr,
         "geometric_isomers": geometric_isomers,
+        "geom_bridges_by_arr": geom_bridges_by_arr,
+        "geom_is_optical": geom_is_optical,
+        "geom_pair_index": geom_pair_index,
         "achiral": achiral,
         "chiral": chiral,
         "enantiomer_pairs": mirror_pairs,
         "enantiomer_label_map": enantiomer_label_map,
         "descriptors_map": descriptors_map,
+        "geom_descriptors_map": geom_descriptors_map,
         "points": points,
     }
-
-
-def isomer_type_info(arr, result):
-    is_chiral = arr in result["chiral"]
-    pair_info = result["enantiomer_label_map"].get(arr)
-    if is_chiral:
-        short_badge = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL (CHIRAL)"
-        full_label = f"Optical Isomer (Chiral) — {pair_info}" if pair_info else "Optical Isomer (Chiral)"
-        badge_color = "#B45309"
-    else:
-        short_badge = "ACHIRAL GEOMETRIC"
-        full_label = "Achiral Isomer (No Optical Enantiomer)"
-        badge_color = "#0369A1"
-    return {
-        "is_chiral": is_chiral,
-        "short_badge": short_badge,
-        "full_label": full_label,
-        "badge_color": badge_color,
-    }
-
-
-def isomer_name(idx, arr, result):
-    type_info = isomer_type_info(arr, result)
-    base_name = f"Isomer #{idx} · {type_info['full_label']}"
-    descs = result["descriptors_map"].get(arr, [])
-    if descs:
-        return f"{base_name} · {', '.join(descs)}"
-    return base_name
 
 
 def curved_bridge_points(p1, p2, bulge=0.28, steps=28):
@@ -396,7 +403,7 @@ def curved_bridge_points(p1, p2, bulge=0.28, steps=28):
     return xs, ys, zs
 
 
-def draw_isomer_3d(points, arrangement, bridges, title, type_info):
+def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color):
     unique_labels = sorted(set(arrangement))
     color_lookup = {
         lbl: LIGAND_COLORS[i % len(LIGAND_COLORS)]
@@ -457,10 +464,10 @@ def draw_isomer_3d(points, arrangement, bridges, title, type_info):
     ax.set_box_aspect([1, 1, 1])
     ax.set_axis_off()
     ax.set_title(
-        f"{title}\n[{type_info['short_badge']}]",
+        f"{title}\n[{badge_text}]",
         fontsize=9.5,
         fontweight="bold",
-        color=type_info["badge_color"],
+        color=badge_color,
         pad=8,
     )
     plt.tight_layout()
@@ -530,35 +537,97 @@ def render_app():
 
     st.subheader("عدد الأيزومرات (Isomer Counts)")
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Total Stereoisomers", len(result["stereoisomers"]))
-    m2.metric("Geometric Classes", len(result["geometric_isomers"]))
+    m1.metric("Geometric Classes", len(result["geometric_isomers"]))
+    m2.metric("Total Stereoisomers", len(result["stereoisomers"]))
     m3.metric("Achiral", len(result["achiral"]))
     m4.metric("Optical (Chiral)", len(result["chiral"]))
     m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
 
-    st.subheader("أسماء ورسوم الأيزومرات (Isomer Names, Descriptors & 3D Diagrams)")
-    stereoisomers = result["stereoisomers"]
+    view_mode = st.radio(
+        "اختر طريقة العرض (Display Mode):",
+        options=[
+            "Geometric Isomers (مطابق لعدد Geometric Classes)",
+            "All Stereoisomers (يشمل كل صورة مرآتية Form A / Form B)",
+        ],
+        horizontal=True,
+    )
+
     cols_per_row = 3
 
-    for start in range(0, len(stereoisomers), cols_per_row):
-        row_cols = st.columns(cols_per_row)
-        chunk = stereoisomers[start : start + cols_per_row]
-        for offset, arr in enumerate(chunk):
-            idx = start + offset + 1
-            name = isomer_name(idx, arr, result)
-            type_info = isomer_type_info(arr, result)
-            descs = result["descriptors_map"].get(arr, [])
-            bridges = result["bridges_by_arr"].get(arr, ())
-            with row_cols[offset]:
-                with st.container(border=True):
-                    st.markdown(f"**{name}**")
-                    fig = draw_isomer_3d(
-                        result["points"], arr, bridges, f"Isomer #{idx}", type_info
-                    )
-                    st.pyplot(fig, use_container_width=True)
-                    plt.close(fig)
-                    desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
-                    st.markdown(f"**Descriptors:** `{desc_text}`")
+    if view_mode.startswith("Geometric Isomers"):
+        geom_list = result["geometric_isomers"]
+        st.subheader(f"الأيزومرات الهندسية ({len(geom_list)} Geometric Isomers)")
+        for start in range(0, len(geom_list), cols_per_row):
+            row_cols = st.columns(cols_per_row)
+            chunk = geom_list[start : start + cols_per_row]
+            for offset, g_arr in enumerate(chunk):
+                idx = start + offset + 1
+                is_opt = result["geom_is_optical"].get(g_arr, False)
+                pair_num = result["geom_pair_index"].get(g_arr)
+                if is_opt:
+                    badge_text = f"OPTICAL · Pair {pair_num}" if pair_num else "OPTICAL"
+                    full_title = f"Geometric Isomer #{idx} · Optical (Chiral · Enantiomer Pair {pair_num})"
+                    badge_color = "#B45309"
+                else:
+                    badge_text = "ACHIRAL"
+                    full_title = f"Geometric Isomer #{idx} · Achiral (No Optical Enantiomer)"
+                    badge_color = "#0369A1"
+
+                descs = result["geom_descriptors_map"].get(g_arr, [])
+                bridges = result["geom_bridges_by_arr"].get(g_arr, ())
+
+                with row_cols[offset]:
+                    with st.container(border=True):
+                        st.markdown(f"**{full_title}**")
+                        fig = draw_isomer_3d(
+                            result["points"],
+                            g_arr,
+                            bridges,
+                            f"Geo #{idx}",
+                            badge_text,
+                            badge_color,
+                        )
+                        st.pyplot(fig, use_container_width=True)
+                        plt.close(fig)
+                        desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
+                        st.markdown(f"**Descriptors:** `{desc_text}`")
+    else:
+        stereo_list = result["stereoisomers"]
+        st.subheader(f"كل الأيزومرات الفراغية ({len(stereo_list)} Stereoisomers)")
+        for start in range(0, len(stereo_list), cols_per_row):
+            row_cols = st.columns(cols_per_row)
+            chunk = stereo_list[start : start + cols_per_row]
+            for offset, s_arr in enumerate(chunk):
+                idx = start + offset + 1
+                is_chiral = s_arr in result["chiral"]
+                pair_info = result["enantiomer_label_map"].get(s_arr)
+                if is_chiral:
+                    badge_text = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL"
+                    full_title = f"Stereoisomer #{idx} · Optical ({pair_info})"
+                    badge_color = "#B45309"
+                else:
+                    badge_text = "ACHIRAL"
+                    full_title = f"Stereoisomer #{idx} · Achiral"
+                    badge_color = "#0369A1"
+
+                descs = result["descriptors_map"].get(s_arr, [])
+                bridges = result["bridges_by_arr"].get(s_arr, ())
+
+                with row_cols[offset]:
+                    with st.container(border=True):
+                        st.markdown(f"**{full_title}**")
+                        fig = draw_isomer_3d(
+                            result["points"],
+                            s_arr,
+                            bridges,
+                            f"Stereo #{idx}",
+                            badge_text,
+                            badge_color,
+                        )
+                        st.pyplot(fig, use_container_width=True)
+                        plt.close(fig)
+                        desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
+                        st.markdown(f"**Descriptors:** `{desc_text}`")
 
 
 if __name__ == "__main__":
