@@ -586,12 +586,18 @@ def render_app():
     with st.expander("الرموز وملاحظات النموذج (Notation & Notes)", expanded=False):
         st.markdown(
             """
-            - **M**: الفلز المركزي
-            - **a2, b2...**: ليجندات أحادية المخلب (Monodentate)
-            - **(AB)**: ليجند ثنائي المخلب بمركزي ارتباط مختلفين **A** و **B**
-            - **(AA)**: ليجند ثنائي المخلب متماثل الطرفين
+    with st.expander("Notation & Model Limitations", expanded=False):
+        st.markdown(
+            """
+            - **M**: Central metal
+            - **a2, b2...**: Monodentate ligands
+            - **(AB)**: Bidentate ligand with two distinct donor atoms **A** and **B**
+            - **(AA)**: Symmetrical bidentate ligand with identical donor ends
 
-            *ملاحظة: يعتمد النموذج على إحداثيات التنسيق المثالية دون نمذجة التشكيلات الفراغية أو الأيزومرية الرابطية أو حالات الأكسدة.*
+            *Note: This model relies on idealized coordination geometries without modeling conformational flexibility, linkage isomerism, or oxidation states.*
+            """
+        )
+            
             """
         )
 
