@@ -624,7 +624,7 @@ def render_app():
 
     st.divider()
 
-    st.subheader("Isomer Counts")
+        st.subheader("Isomer Counts")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Geometric Classes", len(result["geometric_isomers"]))
     m2.metric("Total Stereoisomers", len(result["stereoisomers"]))
@@ -632,9 +632,80 @@ def render_app():
     m4.metric("Optical (Chiral)", len(result["chiral"]))
     m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
 
-        view_mode = st.radio(
+    view_mode = st.radio(
         "Display Mode:",
         options=[
             "Geometric Isomers (Matches Geometric Classes count)",
-            "All Stereoisomers (Includes each mirror form A / B)",],
-        horizontal=True,)
+            "All Stereoisomers (Includes each mirror form A / B)",
+        ],
+        horizontal=True,
+    )
+
+    if view_mode.startswith("Geometric Isomers"):
+        geom_list = result["geometric_isomers"]
+        st.subheader(f"Geometric Isomers ({len(geom_list)})")
+        cards = []
+        for idx, g_arr in enumerate(geom_list, 1):
+            is_opt = result["geom_is_optical"].get(g_arr, False)
+            pair_num = result["geom_pair_index"].get(g_arr)
+            if is_opt:
+                badge_text = f"OPTICAL · Pair {pair_num}" if pair_num else "OPTICAL"
+                full_title = f"Geometric Isomer #{idx} · Optical (Pair {pair_num})"
+                badge_color = OPTICAL_BADGE_COLOR
+                pill_html = format_type_pill(True, f"Enantiomer Pair {pair_num}")
+            else:
+                badge_text = "ACHIRAL"
+                full_title = f"Geometric Isomer #{idx} · Achiral"
+                badge_color = ACHIRAL_BADGE_COLOR
+                pill_html = format_type_pill(False)
+
+            cards.append(
+                {
+                    "points": result["points"],
+                    "arr": g_arr,
+                    "bridges": result["geom_bridges_by_arr"].get(g_arr, ()),
+                    "title": full_title,
+                    "short_title": f"Geo #{idx}",
+                    "badge_text": badge_text,
+                    "badge_color": badge_color,
+                    "pill_html": pill_html,
+                    "descs": result["geom_descriptors_map"].get(g_arr, []),
+                }
+            )
+        render_isomer_grid(cards, cols_per_row=2, dark_mode=dark_mode)
+    else:
+        stereo_list = result["stereoisomers"]
+        st.subheader(f"All Stereoisomers ({len(stereo_list)})")
+        cards = []
+        for idx, s_arr in enumerate(stereo_list, 1):
+            is_chiral = s_arr in result["chiral"]
+            pair_info = result["enantiomer_label_map"].get(s_arr)
+            if is_chiral:
+                badge_text = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL"
+                full_title = f"Stereoisomer #{idx} · Optical ({pair_info})"
+                badge_color = OPTICAL_BADGE_COLOR
+                pill_html = format_type_pill(True, pair_info)
+            else:
+                badge_text = "ACHIRAL"
+                full_title = f"Stereoisomer #{idx} · Achiral"
+                badge_color = ACHIRAL_BADGE_COLOR
+                pill_html = format_type_pill(False)
+
+            cards.append(
+                {
+                    "points": result["points"],
+                    "arr": s_arr,
+                    "bridges": result["bridges_by_arr"].get(s_arr, ()),
+                    "title": full_title,
+                    "short_title": f"Stereo #{idx}",
+                    "badge_text": badge_text,
+                    "badge_color": badge_color,
+                    "pill_html": pill_html,
+                    "descs": result["descriptors_map"].get(s_arr, []),
+                }
+            )
+        render_isomer_grid(cards, cols_per_row=2, dark_mode=dark_mode)
+
+
+if __name__ == "__main__":
+    render_app()
