@@ -286,7 +286,6 @@ def solve(formula, geometry):
     if not improper:
         raise RuntimeError("Could not construct improper symmetry operations for this geometry.")
 
-    # Stereoisomers (quotient by proper rotations)
     stereo_reps = {}
     for st_item in states:
         key = canonical_state(st_item, proper)
@@ -296,7 +295,6 @@ def solve(formula, geometry):
     stereoisomers = [item[0] for item in stereoisomer_states]
     bridges_by_arr = {item[0]: item[1] for item in stereoisomer_states}
 
-    # Geometric isomers (quotient by full symmetry operations including reflections)
     geom_reps = {}
     for st_item in states:
         gkey = canonical_state(st_item, full_ops)
@@ -328,7 +326,6 @@ def solve(formula, geometry):
         enantiomer_label_map[first_arr] = f"Enantiomer Pair {pair_idx} (Form A)"
         enantiomer_label_map[second_arr] = f"Enantiomer Pair {pair_idx} (Form B)"
 
-    # Map each geometric class to whether it has an optical enantiomer pair
     geom_is_optical = {}
     geom_pair_index = {}
     pair_lookup = {}
@@ -338,7 +335,6 @@ def solve(formula, geometry):
 
     for g_state in geometric_states:
         g_arr = g_state[0]
-        # Find any stereoisomer in this geometric class
         matching_pair_idx = None
         for s_arr in stereoisomers:
             if canonical_arrangement(s_arr, full_ops) == canonical_arrangement(g_arr, full_ops):
@@ -411,23 +407,23 @@ def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color)
     }
     bridge_set = {tuple(sorted(pair)) for pair in bridges}
 
-    fig = plt.figure(figsize=(4.2, 4.0))
-    ax = fig.add_subplot(111, projection="3d")
+    fig = plt.figure(figsize=(4.2, 4.0), facecolor="#FFFFFF")
+    ax = fig.add_subplot(111, projection="3d", facecolor="#FFFFFF")
 
-    ax.scatter([0.0], [0.0], [0.0], s=250, color="#374151", edgecolors="white", linewidth=1.2, zorder=5)
+    ax.scatter([0.0], [0.0], [0.0], s=250, color="#1E293B", edgecolors="white", linewidth=1.3, zorder=5)
     ax.text(0.0, 0.0, 0.0, "M", color="white", fontsize=9, fontweight="bold", ha="center", va="center", zorder=6)
 
     for pt, lbl in zip(points, arrangement):
         x, y, z = pt
         c = color_lookup[lbl]
-        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#9CA3AF", linestyle="-", linewidth=1.5, alpha=0.85)
-        ax.scatter([x], [y], [z], s=210, color=c, edgecolors="#1F2937", linewidth=1.0, zorder=6)
+        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#94A3B8", linestyle="-", linewidth=1.6, alpha=0.85)
+        ax.scatter([x], [y], [z], s=215, color=c, edgecolors="#1E293B", linewidth=1.0, zorder=6)
         ax.text(
             x * 1.24,
             y * 1.24,
             z * 1.24,
             lbl,
-            color="#111827",
+            color="#0F172A",
             fontsize=10,
             fontweight="bold",
             ha="center",
@@ -445,17 +441,17 @@ def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color)
             [p1[0], p2[0]],
             [p1[1], p2[1]],
             [p1[2], p2[2]],
-            color="#D1D5DB",
+            color="#CBD5E1",
             linestyle=":",
-            linewidth=0.85,
-            alpha=0.65,
+            linewidth=0.9,
+            alpha=0.7,
         )
 
     for idx_b, (i, j) in enumerate(sorted(bridge_set)):
         p1, p2 = points[i], points[j]
-        arc_color = "#8B5CF6" if idx_b % 2 == 0 else "#EC4899"
+        arc_color = "#7C3AED" if idx_b % 2 == 0 else "#DB2777"
         xs, ys, zs = curved_bridge_points(p1, p2, bulge=0.28, steps=28)
-        ax.plot(xs, ys, zs, color=arc_color, linestyle="-", linewidth=2.4, alpha=0.95, zorder=8)
+        ax.plot(xs, ys, zs, color=arc_color, linestyle="-", linewidth=2.5, alpha=0.95, zorder=8)
 
     lim = 1.48
     ax.set_xlim(-lim, lim)
@@ -464,14 +460,119 @@ def draw_isomer_3d(points, arrangement, bridges, title, badge_text, badge_color)
     ax.set_box_aspect([1, 1, 1])
     ax.set_axis_off()
     ax.set_title(
-        f"{title}\n[{badge_text}]",
+        f"{title} · [{badge_text}]",
         fontsize=9.5,
         fontweight="bold",
         color=badge_color,
-        pad=8,
+        pad=6,
     )
     plt.tight_layout()
     return fig
+
+
+def inject_mobile_friendly_css():
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 1.5rem;
+            padding-bottom: 2.5rem;
+            padding-left: 1.1rem;
+            padding-right: 1.1rem;
+            max-width: 1120px;
+        }
+        .hero-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .hero-title {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0 0 0.25rem 0;
+        }
+        .hero-sub {
+            font-size: 0.92rem;
+            color: #475569;
+            margin: 0;
+            line-height: 1.5;
+        }
+        [data-testid="stMetric"] {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 0.75rem 0.9rem;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        }
+        [data-testid="stMetricLabel"] {
+            font-size: 0.78rem !important;
+            color: #64748b !important;
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 1.35rem !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 16px !important;
+            border-color: #e2e8f0 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+            padding: 0.35rem !important;
+        }
+        .type-pill-opt {
+            display: inline-block;
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            border-radius: 999px;
+            padding: 0.18rem 0.65rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+        .type-pill-ach {
+            display: inline-block;
+            background-color: #e0f2fe;
+            color: #075985;
+            border: 1px solid #7dd3fc;
+            border-radius: 999px;
+            padding: 0.18rem 0.65rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+        @media (max-width: 640px) {
+            .block-container {
+                padding-top: 1rem;
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            .hero-title {
+                font-size: 1.22rem;
+            }
+            .hero-sub {
+                font-size: 0.85rem;
+            }
+            [data-testid="stMetricValue"] {
+                font-size: 1.15rem !important;
+            }
+            [data-testid="stHorizontalBlock"] {
+                flex-direction: column !important;
+                gap: 0.65rem !important;
+            }
+            [data-testid="stHorizontalBlock"] > div {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_app():
@@ -480,29 +581,34 @@ def render_app():
         page_icon="🧪",
         layout="wide",
     )
+    inject_mobile_friendly_css()
 
     if "formula" not in st.session_state:
         st.session_state.formula = "M(AB)a2b2"
     if "geometry" not in st.session_state:
         st.session_state.geometry = "octahedral"
 
-    st.title("🧪 Inorganic Chemistry Isomerism Solver")
-    st.caption(
-        "Educational MVP — enumerates idealized coordination-site arrangements "
-        "and displays isomer counts, names, optical vs. achiral classification, cis/trans & fac/mer descriptors, and 3D diagrams."
+    st.markdown(
+        """
+        <div class="hero-card">
+            <p class="hero-title">🧪 Inorganic Chemistry Isomerism Solver</p>
+            <p class="hero-sub">
+                حساب الأيزومرات الهندسية والبصرية وعرض أسمائها وتسمياتها ورسومها ثلاثية الأبعاد بوضوح على الموبايل والكمبيوتر.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    with st.expander("Notation & Model Limitations", expanded=False):
+    with st.expander("الرموز وملاحظات النموذج (Notation & Notes)", expanded=False):
         st.markdown(
             """
-            - **M**: Central metal (ignored for geometric enumeration)
-            - **a2, b2...**: Monodentate ligands
-            - **(AB)**: Bidentate ligand with connected donor ends **A** and **B**
-            - **(AA)**: Symmetrical bidentate ligand with connected identical donor ends
+            - **M**: الفلز المركزي
+            - **a2, b2...**: ليجندات أحادية المخلب (Monodentate)
+            - **(AB)**: ليجند ثنائي المخلب بمركزي ارتباط مختلفين **A** و **B**
+            - **(AA)**: ليجند ثنائي المخلب متماثل الطرفين
 
-            *Note: This model enumerates idealized coordination-site arrangements without
-            modeling ligand conformations, ring puckering, linkage isomerism, or
-            oxidation states.*
+            *ملاحظة: يعتمد النموذج على إحداثيات التنسيق المثالية دون نمذجة التشكيلات الفراغية أو الأيزومرية الرابطية أو حالات الأكسدة.*
             """
         )
 
@@ -510,27 +616,27 @@ def render_app():
 
     with col_input:
         formula = st.text_input(
-            "Symbolic Formula",
+            "الصيغة الرمزية (Symbolic Formula)",
             key="formula",
-            help="Examples: M(AB)a2b2, Ma4, Ma3b2, M(AA)2a2",
+            help="أمثلة: M(AB)a2b2, Ma4, Ma3b2, M(AA)2a2",
         )
 
     with col_geom:
         geometry = st.selectbox(
-            "Coordination Geometry",
+            "الهندسة التناسقية (Geometry)",
             options=list(GEOMETRIES.keys()),
             key="geometry",
             format_func=lambda g: g.replace("_", " ").title(),
         )
 
     if not formula.strip():
-        st.warning("Please enter a valid coordination formula.")
+        st.warning("من فضلك أدخلي صيغة تناسقية صحيحة.")
         return
 
     try:
         result = solve(formula.strip(), geometry)
     except Exception as exc:
-        st.error(f"Input / Error: {exc}")
+        st.error(f"خطأ في الإدخال: {exc}")
         return
 
     st.divider()
@@ -544,7 +650,7 @@ def render_app():
     m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
 
     view_mode = st.radio(
-        "اختر طريقة العرض (Display Mode):",
+        "طريقة العرض (Display Mode):",
         options=[
             "Geometric Isomers (مطابق لعدد Geometric Classes)",
             "All Stereoisomers (يشمل كل صورة مرآتية Form A / Form B)",
@@ -552,11 +658,11 @@ def render_app():
         horizontal=True,
     )
 
-    cols_per_row = 3
+    cols_per_row = 2
 
     if view_mode.startswith("Geometric Isomers"):
         geom_list = result["geometric_isomers"]
-        st.subheader(f"الأيزومرات الهندسية ({len(geom_list)} Geometric Isomers)")
+        st.subheader(f"الأيزومرات الهندسية ({len(geom_list)})")
         for start in range(0, len(geom_list), cols_per_row):
             row_cols = st.columns(cols_per_row)
             chunk = geom_list[start : start + cols_per_row]
@@ -566,18 +672,21 @@ def render_app():
                 pair_num = result["geom_pair_index"].get(g_arr)
                 if is_opt:
                     badge_text = f"OPTICAL · Pair {pair_num}" if pair_num else "OPTICAL"
-                    full_title = f"Geometric Isomer #{idx} · Optical (Chiral · Enantiomer Pair {pair_num})"
+                    full_title = f"Geometric Isomer #{idx} · Optical (Pair {pair_num})"
                     badge_color = "#B45309"
+                    pill_html = f'<span class="type-pill-opt">Optical Isomer · Enantiomer Pair {pair_num}</span>'
                 else:
                     badge_text = "ACHIRAL"
-                    full_title = f"Geometric Isomer #{idx} · Achiral (No Optical Enantiomer)"
+                    full_title = f"Geometric Isomer #{idx} · Achiral"
                     badge_color = "#0369A1"
+                    pill_html = '<span class="type-pill-ach">Achiral Isomer (No Optical Enantiomer)</span>'
 
                 descs = result["geom_descriptors_map"].get(g_arr, [])
                 bridges = result["geom_bridges_by_arr"].get(g_arr, ())
 
                 with row_cols[offset]:
                     with st.container(border=True):
+                        st.markdown(pill_html, unsafe_allow_html=True)
                         st.markdown(f"**{full_title}**")
                         fig = draw_isomer_3d(
                             result["points"],
@@ -585,50 +694,4 @@ def render_app():
                             bridges,
                             f"Geo #{idx}",
                             badge_text,
-                            badge_color,
-                        )
-                        st.pyplot(fig, use_container_width=True)
-                        plt.close(fig)
-                        desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
-                        st.markdown(f"**Descriptors:** `{desc_text}`")
-    else:
-        stereo_list = result["stereoisomers"]
-        st.subheader(f"كل الأيزومرات الفراغية ({len(stereo_list)} Stereoisomers)")
-        for start in range(0, len(stereo_list), cols_per_row):
-            row_cols = st.columns(cols_per_row)
-            chunk = stereo_list[start : start + cols_per_row]
-            for offset, s_arr in enumerate(chunk):
-                idx = start + offset + 1
-                is_chiral = s_arr in result["chiral"]
-                pair_info = result["enantiomer_label_map"].get(s_arr)
-                if is_chiral:
-                    badge_text = f"OPTICAL · {pair_info}" if pair_info else "OPTICAL"
-                    full_title = f"Stereoisomer #{idx} · Optical ({pair_info})"
-                    badge_color = "#B45309"
-                else:
-                    badge_text = "ACHIRAL"
-                    full_title = f"Stereoisomer #{idx} · Achiral"
-                    badge_color = "#0369A1"
-
-                descs = result["descriptors_map"].get(s_arr, [])
-                bridges = result["bridges_by_arr"].get(s_arr, ())
-
-                with row_cols[offset]:
-                    with st.container(border=True):
-                        st.markdown(f"**{full_title}**")
-                        fig = draw_isomer_3d(
-                            result["points"],
-                            s_arr,
-                            bridges,
-                            f"Stereo #{idx}",
-                            badge_text,
-                            badge_color,
-                        )
-                        st.pyplot(fig, use_container_width=True)
-                        plt.close(fig)
-                        desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
-                        st.markdown(f"**Descriptors:** `{desc_text}`")
-
-
-if __name__ == "__main__":
-    render_app()
+                            badge_color
