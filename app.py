@@ -624,7 +624,7 @@ def render_app():
 
     st.divider()
 
-        st.subheader("Isomer Counts")
+    st.subheader("Isomer Counts")
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Geometric Classes", len(result["geometric_isomers"]))
     m2.metric("Total Stereoisomers", len(result["stereoisomers"]))
