@@ -635,5 +635,5 @@ def render_app():
     view_mode = st.radio(
         "Display Mode:",
         options=[
-            "Geometric Isomers (Matches Geometric Classes count)",
+            "Geometric Isomers (Matches Geometric Classes count)"],
    
