@@ -632,8 +632,11 @@ def render_app():
     m4.metric("Optical (Chiral)", len(result["chiral"]))
     m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
 
-    view_mode = st.radio(
+        view_mode = st.radio(
         "Display Mode:",
         options=[
-            "Geometric Isomers (Matches Geometric Classes count)"]),
-   
+            "Geometric Isomers (Matches Geometric Classes count)",
+            "All Stereoisomers (Includes each mirror form A / B)",
+        ],
+        horizontal=True,
+)
