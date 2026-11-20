@@ -1,0 +1,496 @@
+"""
+Inorganic Chemistry Isomerism Solver — Streamlit App
+Python 3.10+
+"""
+
+from itertools import combinations, permutations, product
+from collections import Counter, defaultdict
+import math
+import re
+import matplotlib.pyplot as plt
+import streamlit as st
+
+GEOMETRIES = {
+    "octahedral": [
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, -1.0),
+    ],
+    "tetrahedral": [
+        (1.0, 1.0, 1.0),
+        (1.0, -1.0, -1.0),
+        (-1.0, 1.0, -1.0),
+        (-1.0, -1.0, 1.0),
+    ],
+    "square_planar": [
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, -1.0, 0.0),
+    ],
+    "trigonal_bipyramidal": [
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, -1.0),
+        (1.0, 0.0, 0.0),
+        (-0.5, math.sqrt(3.0) / 2.0, 0.0),
+        (-0.5, -math.sqrt(3.0) / 2.0, 0.0),
+    ],
+    "square_pyramidal": [
+        (0.0, 0.0, 1.0),
+        (1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, -1.0, 0.0),
+    ],
+}
+
+LIGAND_COLORS = [
+    "#E15759",
+    "#4E79A7",
+    "#59A14F",
+    "#F28E2B",
+    "#B07AA1",
+    "#76B7B2",
+    "#EDC948",
+    "#FF9DA7",
+]
+
+
+def determinant(m):
+    return (
+        m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0])
+    )
+
+
+def mat_vec(m, v):
+    return tuple(sum(m[i][j] * v[j] for j in range(3)) for i in range(3))
+
+
+def match_point_index(target, points, tol=1e-7):
+    for idx, p in enumerate(points):
+        if all(abs(target[k] - p[k]) <= tol for k in range(3)):
+            return idx
+    return None
+
+
+@st.cache_data
+def symmetry_permutations(geometry_name, determinant_sign):
+    """All idealized symmetry operations of a site set, filtered by det +/-1."""
+    points = GEOMETRIES[geometry_name]
+    ops = []
+    for perm in permutations(range(3)):
+        for signs in product((-1.0, 1.0), repeat=3):
+            matrix = tuple(
+                tuple(signs[i] if perm[i] == j else 0.0 for j in range(3))
+                for i in range(3)
+            )
+            if determinant(matrix) != determinant_sign:
+                continue
+            mapped = [match_point_index(mat_vec(matrix, p), points) for p in points]
+            if all(x is not None for x in mapped) and len(set(mapped)) == len(points):
+                ops.append(tuple(mapped))
+    return list(dict.fromkeys(ops))
+
+
+def parse_formula(text):
+    """
+    Returns [('chel', 'A', 'B', count), ...] and mono counts.
+    """
+    s = text.replace(" ", "")
+    if not s.startswith("M"):
+        raise ValueError("Formula must start with M, e.g. M(AB)a2b2.")
+    s = s[1:]
+    chelates = []
+    pattern = re.compile(r"\(([A-Za-z]{2})\)(\d*)")
+    for match in pattern.finditer(s):
+        pair = match.group(1)
+        count = int(match.group(2) or "1")
+        chelates.append((pair[0], pair[1], count))
+    s = pattern.sub("", s)
+
+    mono = Counter()
+    pos = 0
+    while pos < len(s):
+        match = re.match(r"([a-z])(\d*)", s[pos:])
+        if not match:
+            raise ValueError(
+                f"Cannot read '{s[pos:]}'. Use lowercase letters for "
+                "monodentate ligands and (AB) for bidentate ligands."
+            )
+        ligand = match.group(1)
+        count = int(match.group(2) or "1")
+        mono[ligand] += count
+        pos += len(match.group(0))
+    return chelates, mono
+
+
+def make_groups(chelates, mono):
+    """Each group is a tuple of donor-site labels occupying one or two sites."""
+    groups = []
+    for left, right, count in chelates:
+        for _ in range(count):
+            groups.append((f"({left}{right})", (left, right), True))
+    for ligand, count in sorted(mono.items()):
+        for _ in range(count):
+            groups.append((ligand, (ligand,), False))
+    return groups
+
+
+def adjacent_pairs(points, tol=1e-6):
+    """Coordination bonds are represented by shortest non-zero site distances."""
+    distances = {}
+    for i, p in enumerate(points):
+        for j in range(i + 1, len(points)):
+            q = points[j]
+            d = math.sqrt(sum((p[k] - q[k]) ** 2 for k in range(3)))
+            distances[(i, j)] = d
+    shortest = min(distances.values())
+    return {(i, j) for (i, j), d in distances.items() if abs(d - shortest) <= tol}
+
+
+def combinations_sorted(items):
+    for i in range(len(items)):
+        for j in range(i + 1, len(items)):
+            yield items[i], items[j]
+
+
+def enumerate_arrangements(points, groups):
+    n = len(points)
+    total_donors = sum(len(g[1]) for g in groups)
+    if total_donors != n:
+        raise ValueError(
+            f"Donor count is {total_donors}, but this "
+            f"geometry has {n} coordination sites."
+        )
+    edges = adjacent_pairs(points)
+    arrangements = set()
+
+    def recurse(group_index, remaining, site_labels):
+        if group_index == len(groups):
+            arrangements.add(tuple(site_labels))
+            return
+        _, donors, is_chelate = groups[group_index]
+        if not is_chelate:
+            for site in remaining:
+                new_labels = list(site_labels)
+                new_labels[site] = donors[0]
+                recurse(
+                    group_index + 1,
+                    tuple(x for x in remaining if x != site),
+                    new_labels,
+                )
+        else:
+            for i, j in combinations_sorted(remaining):
+                if (min(i, j), max(i, j)) not in edges:
+                    continue
+                orientations = [(donors[0], donors[1])]
+                if donors[0] != donors[1]:
+                    orientations.append((donors[1], donors[0]))
+                for first, second in orientations:
+                    new_labels = list(site_labels)
+                    new_labels[i], new_labels[j] = first, second
+                    recurse(
+                        group_index + 1,
+                        tuple(x for x in remaining if x not in (i, j)),
+                        new_labels,
+                    )
+
+    recurse(0, tuple(range(n)), [None] * n)
+    return arrangements
+
+
+def transform(arrangement, permutation):
+    result = [None] * len(arrangement)
+    for old_site, new_site in enumerate(permutation):
+        result[new_site] = arrangement[old_site]
+    return tuple(result)
+
+
+def canonical(arrangement, ops):
+    return min(transform(arrangement, op) for op in ops)
+
+
+def angle_deg(v1, v2):
+    n1 = math.sqrt(sum(x * x for x in v1))
+    n2 = math.sqrt(sum(x * x for x in v2))
+    if n1 == 0 or n2 == 0:
+        return 0.0
+    cos_theta = max(-1.0, min(1.0, sum(a * b for a, b in zip(v1, v2)) / (n1 * n2)))
+    return math.degrees(math.acos(cos_theta))
+
+
+def infer_descriptors(points, arrangement, geometry):
+    """
+    Infers automatic cis/trans and fac/mer descriptors from idealized site angles.
+    Returns a list of short descriptor strings.
+    """
+    indices_by_label = defaultdict(list)
+    for idx, lbl in enumerate(arrangement):
+        indices_by_label[lbl].append(idx)
+
+    descriptors = []
+
+    for lbl, idxs in sorted(indices_by_label.items()):
+        if len(idxs) == 3 and geometry in ("octahedral", "trigonal_bipyramidal"):
+            pair_angles = [
+                angle_deg(points[i], points[j]) for i, j in combinations(idxs, 2)
+            ]
+            has_180 = any(abs(ang - 180.0) <= 5.0 for ang in pair_angles)
+            if geometry == "octahedral":
+                tag = "mer" if has_180 else "fac"
+                descriptors.append(f"{tag}-{lbl}3")
+
+    for lbl, idxs in sorted(indices_by_label.items()):
+        if len(idxs) >= 2:
+            for i, j in combinations(idxs, 2):
+                ang = angle_deg(points[i], points[j])
+                if abs(ang - 180.0) <= 5.0:
+                    descriptors.append(f"trans-{lbl}")
+                elif geometry in ("octahedral", "square_planar", "square_pyramidal") and abs(ang - 90.0) <= 5.0:
+                    descriptors.append(f"cis-{lbl}")
+
+    return list(dict.fromkeys(descriptors))
+
+
+def solve(formula, geometry):
+    geometry = geometry.lower().replace(" ", "_")
+    if geometry not in GEOMETRIES:
+        raise ValueError("Unknown geometry. Choose: " + ", ".join(GEOMETRIES))
+    chelates, mono = parse_formula(formula)
+    groups = make_groups(chelates, mono)
+    points = GEOMETRIES[geometry]
+    arrangements = enumerate_arrangements(points, groups)
+
+    proper = symmetry_permutations(geometry, +1)
+    improper = symmetry_permutations(geometry, -1)
+    full_ops = proper + improper
+    if not improper:
+        raise RuntimeError("Could not construct improper symmetry operations for this geometry.")
+
+    representatives = {}
+    for arr in arrangements:
+        key = canonical(arr, proper)
+        representatives[key] = key
+    stereoisomers = sorted(representatives)
+    geometric_representatives = {canonical(arr, full_ops) for arr in arrangements}
+    geometric_isomers = sorted(geometric_representatives)
+
+    chiral = []
+    achiral = []
+    mirror_pairs = []
+    seen_pairs = set()
+    enantiomer_label_map = {}
+
+    for arr in stereoisomers:
+        mirror_images = {canonical(transform(arr, op), proper) for op in improper}
+        if arr in mirror_images:
+            achiral.append(arr)
+        else:
+            chiral.append(arr)
+            mirror_key = min(mirror_images)
+            pair = tuple(sorted((arr, mirror_key)))
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                mirror_pairs.append(pair)
+
+    for pair_idx, (first_arr, second_arr) in enumerate(mirror_pairs, 1):
+        enantiomer_label_map[first_arr] = f"Enantiomer Pair {pair_idx} (Form A)"
+        enantiomer_label_map[second_arr] = f"Enantiomer Pair {pair_idx} (Form B)"
+
+    descriptors_map = {
+        arr: infer_descriptors(points, arr, geometry) for arr in stereoisomers
+    }
+
+    return {
+        "geometry": geometry,
+        "site_count": len(points),
+        "raw_arrangements": len(arrangements),
+        "stereoisomers": stereoisomers,
+        "geometric_isomers": geometric_isomers,
+        "achiral": achiral,
+        "chiral": chiral,
+        "enantiomer_pairs": mirror_pairs,
+        "enantiomer_label_map": enantiomer_label_map,
+        "descriptors_map": descriptors_map,
+        "points": points,
+    }
+
+
+def isomer_name(idx, arr, result):
+    chirality = "Achiral" if arr in result["achiral"] else "Chiral"
+    pair_info = result["enantiomer_label_map"].get(arr)
+    base_name = f"Isomer #{idx} · {pair_info} [{chirality}]" if pair_info else f"Isomer #{idx} [{chirality}]"
+    descs = result["descriptors_map"].get(arr, [])
+    if descs:
+        return f"{base_name} · {', '.join(descs)}"
+    return base_name
+
+
+def draw_isomer_3d(points, arrangement, title):
+    unique_labels = sorted(set(arrangement))
+    color_lookup = {
+        lbl: LIGAND_COLORS[i % len(LIGAND_COLORS)]
+        for i, lbl in enumerate(unique_labels)
+    }
+
+    fig = plt.figure(figsize=(4.2, 3.8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    ax.scatter([0.0], [0.0], [0.0], s=260, color="#333333", edgecolors="white", linewidth=1.2, zorder=5)
+    ax.text(0.0, 0.0, 0.0, "M", color="white", fontsize=9, fontweight="bold", ha="center", va="center", zorder=6)
+
+    for pt, lbl in zip(points, arrangement):
+        x, y, z = pt
+        c = color_lookup[lbl]
+        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#888888", linestyle="-", linewidth=1.6, alpha=0.8)
+        ax.scatter([x], [y], [z], s=220, color=c, edgecolors="#222222", linewidth=1.0, zorder=6)
+        ax.text(
+            x * 1.24,
+            y * 1.24,
+            z * 1.24,
+            lbl,
+            color="#111111",
+            fontsize=10,
+            fontweight="bold",
+            ha="center",
+            va="center",
+            zorder=7,
+        )
+
+    edges = adjacent_pairs(points)
+    for i, j in edges:
+        p1, p2 = points[i], points[j]
+        ax.plot(
+            [p1[0], p2[0]],
+            [p1[1], p2[1]],
+            [p1[2], p2[2]],
+            color="#CCCCCC",
+            linestyle=":",
+            linewidth=0.9,
+            alpha=0.7,
+        )
+
+    lim = 1.45
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_zlim(-lim, lim)
+    ax.set_box_aspect([1, 1, 1])
+    ax.set_axis_off()
+    ax.set_title(title, fontsize=10, fontweight="bold", pad=8)
+    plt.tight_layout()
+    return fig
+
+
+def render_app():
+    st.set_page_config(
+        page_title="Inorganic Chemistry Isomerism Solver",
+        page_icon="🧪",
+        layout="wide",
+    )
+
+    if "formula" not in st.session_state:
+        st.session_state.formula = "M(AB)a2b2"
+    if "geometry" not in st.session_state:
+        st.session_state.geometry = "octahedral"
+
+    st.title("🧪 Inorganic Chemistry Isomerism Solver")
+    st.caption(
+        "Educational MVP — enumerates idealized coordination-site arrangements "
+        "and displays isomer counts, names, cis/trans & fac/mer descriptors, and 3D diagrams."
+    )
+
+    with st.expander("Notation & Model Limitations", expanded=False):
+        st.markdown(
+            """
+            - **M**: Central metal (ignored for geometric enumeration)
+            - **a2, b2...**: Monodentate ligands
+            - **(AB)**: Bidentate ligand with unlike donor ends **A** and **B**
+            - **(AA)**: Symmetrical bidentate ligand with identical donor ends
+
+            *Note: This model enumerates idealized coordination-site arrangements without
+            modeling ligand conformations, ring puckering, linkage isomerism, or
+            oxidation states.*
+            """
+        )
+
+    col_input, col_geom = st.columns([2, 1])
+
+    with col_input:
+        formula = st.text_input(
+            "Symbolic Formula",
+            key="formula",
+            help="Examples: M(AB)a2b2, Ma4, Ma3b2, M(AA)2a2",
+        )
+
+    with col_geom:
+        geometry = st.selectbox(
+            "Coordination Geometry",
+            options=list(GEOMETRIES.keys()),
+            key="geometry",
+            format_func=lambda g: g.replace("_", " ").title(),
+        )
+
+    st.markdown("**Quick Presets:**")
+    p1, p2, p3 = st.columns(3)
+    if p1.button("M(AB)a2b2 · Octahedral"):
+        st.session_state.formula = "M(AB)a2b2"
+        st.session_state.geometry = "octahedral"
+        st.rerun()
+    if p2.button("Ma4 · Square Planar"):
+        st.session_state.formula = "Ma4"
+        st.session_state.geometry = "square_planar"
+        st.rerun()
+    if p3.button("Ma3b2 · Trigonal Bipyramidal"):
+        st.session_state.formula = "Ma3b2"
+        st.session_state.geometry = "trigonal_bipyramidal"
+        st.rerun()
+
+    if not formula.strip():
+        st.warning("Please enter a valid coordination formula.")
+        return
+
+    try:
+        result = solve(formula.strip(), geometry)
+    except Exception as exc:
+        st.error(f"Input / Error: {exc}")
+        return
+
+    st.divider()
+
+    st.subheader("عدد الأيزومرات (Isomer Counts)")
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Total Stereoisomers", len(result["stereoisomers"]))
+    m2.metric("Geometric Classes", len(result["geometric_isomers"]))
+    m3.metric("Achiral", len(result["achiral"]))
+    m4.metric("Chiral", len(result["chiral"]))
+    m5.metric("Enantiomer Pairs", len(result["enantiomer_pairs"]))
+
+    st.subheader("أسماء ورسوم الأيزومرات (Isomer Names, Descriptors & 3D Diagrams)")
+    stereoisomers = result["stereoisomers"]
+    cols_per_row = 3
+
+    for start in range(0, len(stereoisomers), cols_per_row):
+        row_cols = st.columns(cols_per_row)
+        chunk = stereoisomers[start : start + cols_per_row]
+        for offset, arr in enumerate(chunk):
+            idx = start + offset + 1
+            name = isomer_name(idx, arr, result)
+            descs = result["descriptors_map"].get(arr, [])
+            with row_cols[offset]:
+                with st.container(border=True):
+                    st.markdown(f"**{name}**")
+                    st.caption(f"Sites: `{arr}`")
+                    fig = draw_isomer_3d(result["points"], arr, f"Isomer #{idx}")
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                    desc_text = ", ".join(descs) if descs else "No cis/trans or fac/mer label"
+                    st.markdown(f"**Descriptors:** `{desc_text}`")
+
+
+if __name__ == "__main__":
+    render_app()
