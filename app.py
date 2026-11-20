@@ -160,11 +160,6 @@ def combinations_sorted(items):
 
 
 def enumerate_arrangements(points, groups):
-    """
-    Returns set of (site_labels_tuple, chelate_bridges_tuple)
-    where chelate_bridges_tuple contains sorted (site_i, site_j) pairs
-    connected by a bidentate ligand.
-    """
     n = len(points)
     total_donors = sum(len(g[1]) for g in groups)
     if total_donors != n:
@@ -355,6 +350,34 @@ def isomer_name(idx, arr, result):
     return base_name
 
 
+def curved_bridge_points(p1, p2, bulge=0.28, steps=28):
+    """Generates a smooth outward arc connecting two bidentate donor sites."""
+    mx = (p1[0] + p2[0]) / 2.0
+    my = (p1[1] + p2[1]) / 2.0
+    mz = (p1[2] + p2[2]) / 2.0
+    norm = math.sqrt(mx * mx + my * my + mz * mz)
+    if norm > 1e-6:
+        ux, uy, uz = mx / norm, my / norm, mz / norm
+    else:
+        ux, uy, uz = 0.0, 0.0, 1.0
+
+    ctrl_x = mx + bulge * ux
+    ctrl_y = my + bulge * uy
+    ctrl_z = mz + bulge * uz
+
+    xs, ys, zs = [], [], []
+    for k in range(steps + 1):
+        t = k / steps
+        inv = 1.0 - t
+        x = inv * inv * p1[0] + 2.0 * inv * t * ctrl_x + t * t * p2[0]
+        y = inv * inv * p1[1] + 2.0 * inv * t * ctrl_y + t * t * p2[1]
+        z = inv * inv * p1[2] + 2.0 * inv * t * ctrl_z + t * t * p2[2]
+        xs.append(x)
+        ys.append(y)
+        zs.append(z)
+    return xs, ys, zs
+
+
 def draw_isomer_3d(points, arrangement, bridges, title):
     unique_labels = sorted(set(arrangement))
     color_lookup = {
@@ -366,20 +389,20 @@ def draw_isomer_3d(points, arrangement, bridges, title):
     fig = plt.figure(figsize=(4.2, 3.8))
     ax = fig.add_subplot(111, projection="3d")
 
-    ax.scatter([0.0], [0.0], [0.0], s=260, color="#333333", edgecolors="white", linewidth=1.2, zorder=5)
+    ax.scatter([0.0], [0.0], [0.0], s=250, color="#374151", edgecolors="white", linewidth=1.2, zorder=5)
     ax.text(0.0, 0.0, 0.0, "M", color="white", fontsize=9, fontweight="bold", ha="center", va="center", zorder=6)
 
     for pt, lbl in zip(points, arrangement):
         x, y, z = pt
         c = color_lookup[lbl]
-        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#888888", linestyle="-", linewidth=1.6, alpha=0.8)
-        ax.scatter([x], [y], [z], s=220, color=c, edgecolors="#222222", linewidth=1.0, zorder=6)
+        ax.plot([0.0, x], [0.0, y], [0.0, z], color="#9CA3AF", linestyle="-", linewidth=1.5, alpha=0.85)
+        ax.scatter([x], [y], [z], s=210, color=c, edgecolors="#1F2937", linewidth=1.0, zorder=6)
         ax.text(
             x * 1.24,
             y * 1.24,
             z * 1.24,
             lbl,
-            color="#111111",
+            color="#111827",
             fontsize=10,
             fontweight="bold",
             ha="center",
@@ -397,42 +420,20 @@ def draw_isomer_3d(points, arrangement, bridges, title):
             [p1[0], p2[0]],
             [p1[1], p2[1]],
             [p1[2], p2[2]],
-            color="#CCCCCC",
+            color="#D1D5DB",
             linestyle=":",
-            linewidth=0.9,
-            alpha=0.7,
+            linewidth=0.85,
+            alpha=0.65,
         )
 
-    # Highlight connected donor ends of each bidentate ligand
-    for idx_b, (i, j) in enumerate(sorted(bridge_set), 1):
+    # Smooth outward arc for each bidentate chelate bridge
+    for idx_b, (i, j) in enumerate(sorted(bridge_set)):
         p1, p2 = points[i], points[j]
-        ax.plot(
-            [p1[0], p2[0]],
-            [p1[1], p2[1]],
-            [p1[2], p2[2]],
-            color="#7A1FA2",
-            linestyle="-",
-            linewidth=2.8,
-            alpha=0.95,
-            zorder=8,
-        )
-        mx = (p1[0] + p2[0]) / 2.0
-        my = (p1[1] + p2[1]) / 2.0
-        mz = (p1[2] + p2[2]) / 2.0
-        ax.text(
-            mx * 1.15,
-            my * 1.15,
-            mz * 1.15,
-            f"chelate{idx_b}",
-            color="#4A148C",
-            fontsize=8,
-            fontweight="bold",
-            ha="center",
-            va="center",
-            zorder=9,
-        )
+        arc_color = "#8B5CF6" if idx_b % 2 == 0 else "#EC4899"
+        xs, ys, zs = curved_bridge_points(p1, p2, bulge=0.28, steps=28)
+        ax.plot(xs, ys, zs, color=arc_color, linestyle="-", linewidth=2.4, alpha=0.95, zorder=8)
 
-    lim = 1.45
+    lim = 1.48
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
     ax.set_zlim(-lim, lim)
