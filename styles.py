@@ -206,10 +206,10 @@ def render_legend_strip():
     st.markdown(
         """
         <div class="legend-strip">
-            <span class="legend-item"><b>M</b> الفلز المركزي</span>
-            <span class="legend-item"><span class="dot-chelate"></span> قوس Chelate يربط طرفي Bidentate</span>
-            <span class="legend-item">Optical = كيرالي (له نظير مرآتي)</span>
-            <span class="legend-item">Achiral = غير كيرالي</span>
+            <span class="legend-item"><b>M</b> Central metal</span>
+            <span class="legend-item"><span class="dot-chelate"></span> Chelate arc connecting bidentate donor ends</span>
+            <span class="legend-item">Optical = Chiral (has a mirror-image enantiomer)</span>
+            <span class="legend-item">Achiral = No non-superimposable mirror image</span>
         </div>
         """,
         unsafe_allow_html=True,
