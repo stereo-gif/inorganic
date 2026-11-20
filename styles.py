@@ -75,13 +75,7 @@ def apply_styles(dark_mode: bool = False):
             font-size: 1.45rem;
             font-weight: 800;
             color: {text_main};
-            margin: 0 0 0.25rem 0;
-        }}
-        .hero-sub {{
-            font-size: 0.92rem;
-            color: {text_muted};
             margin: 0;
-            line-height: 1.55;
         }}
         .legend-strip {{
             display: flex;
@@ -174,9 +168,6 @@ def apply_styles(dark_mode: bool = False):
             .hero-title {{
                 font-size: 1.22rem;
             }}
-            .hero-sub {{
-                font-size: 0.85rem;
-            }}
             [data-testid="stMetricValue"] {{
                 font-size: 1.15rem !important;
             }}
@@ -205,9 +196,6 @@ def render_hero():
         """
         <div class="hero-card">
             <p class="hero-title">🧪 Inorganic Chemistry Isomerism Solver</p>
-            <p class="hero-sub">
-                حساب الأيزومرات الهندسية والبصرية وعرض أسمائها وتسمياتها ورسومها ثلاثية الأبعاد بوضوح على الموبايل والكمبيوتر.
-            </p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -233,3 +221,4 @@ def format_type_pill(is_optical, pair_label=None):
         suffix = f" · {pair_label}" if pair_label else ""
         return f'<span class="type-pill-opt">Optical Isomer{suffix}</span>'
     return '<span class="type-pill-ach">Achiral Isomer (No Optical Enantiomer)</span>'
+    
